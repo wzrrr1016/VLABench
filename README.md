@@ -2,7 +2,7 @@
 
 <!-- <span style="font-size:16px"> 🚨 <span style="color:#AB4459;">**NOTICE:**</span> 🎁 The early preview version is released on my birthday (12.25) as a gift for myself🎄! Most codes are still under management or even reconstruction for a more robust and user-friendly version.（Sorry, I’ve been so busy these days). The Complete Version will be open-sourced around the Chinese Lunar New Year🧧! </br> <span style="font-size:14px;font-style: italic;">I don’t like the phrase "code coming soon"; it often feels like I’ll never actually see the code on GitHub, which can be quite frustrating. So this early version is my promise.</span></span> -->
 
-###  🎓 [**Paper**](docs/pdf/paper.pdf) |  🌐 [**Project Website**](https://vlabench.github.io/) ｜ 🤗 [**Hugging Face**](https://huggingface.co/VLABench)
+###  🎓 [**Paper**](docs/pdf/paper.pdf) |  🌐 [**Project Website**](https://vlabench.github.io/) ｜ 🤗 [**Hugging Face**](https://huggingface.co/VLABench) | 🐳 [**Quick Start with Docker**](./QuickStart.md)
 <img src="docs/images/Figure1_overview.png" width="100%" />
 
 
@@ -27,7 +27,7 @@ pip install -e .
 ```
 2. Download the assets
 ```sh
-python script/download_assetes.py
+python script/download_assets.py
 ```
 
 3. (Option) Initialize submodules
@@ -42,7 +42,7 @@ The script will automatically download the necessary assets and unzip them into 
 ### Run scripts to generate hdf5 dataset with multi-processing
 We provide a brief tutorial in `tutorials/2.auto_trajectory_generate.ipynb` and the whole codes are in `scripts/trajectory_generation.py`. Trajectory generation can be sped up several times by using multiple processes. A naive way to use it is: 
 ```sh
-sh data_generation.sh
+sh dataset_generation.sh
 ```
 Currently, the version does not support multi-processing environment within the code. We will optimize the collection efficiency as much as possible in future updates. After running the script, each trajectory will be stored as a hdf5 file in the directory you specify.
 
@@ -97,7 +97,7 @@ VLABench adopts a flexible modular framework for task construction, offering hig
 ## Evaluate
 VLABench currently provides standard benchmark datasets, focusing on generalization across multiple dimensions. In the [VLABench/configs/evaluation/tracks](./VLABench/configs/evaluation/tracks) directory, we have set up multiple benchmark sets across different dimensions. These configs ensure that different models can be fairly compared under the same episodes on different machines.
 
-| Track | Descrition |
+| Track | Description |
 |----------|----------|
 | track_1_in_distribution | Evaluation of the policy's task learning ability, requiring it to fit in-domain episodes with a small and diverse set of data. |
 | track_2_cross_categroy | Evaluation of the policy's generalization ability at the object **category level** & **instance level**, requiring visual generalization capability. |
@@ -108,13 +108,18 @@ VLABench currently provides standard benchmark datasets, focusing on generalizat
 
 **NOTICE:** The evaluation can also be done by directly sampling episodes from the environment. This evaluation method is more flexible, but there is a risk of improperly initialized episodes. We recommend using the 'evaluation_tracks' method for evaluation.
 
+### VLA/policy evaluation
+We provide a standardized fine-tuning dataset, which can be downloaded from [hf-dataset](https://huggingface.co/datasets/VLABench/vlabench_primitive_ft_dataset). In this version, the data focuses on primitive tasks. We selected 10 basic tasks and provided 500 samples for each task.
+
+Since the current version of VLA does not perform well on primitive tasks, we plan to focus on enhancing VLA’s capabilities in this area first. In the future, we will release a more organized dataset for more composite tasks.
+
 1. Evaluate OpenVLA
 
 Before evaluate your finetuned OpenVLA, please compute the norm_stat on your dataset and place it to `VLABench/configs/model/openvla_config.json`
 
 Run the evaluation scripts by
 ```sh
-python scirpts/evaluate_policy.py --n-sample 20 --model openvla --model_ckpt xx --loar_ckpt xx --eval_track track_1_in_distribution --tasks task1, task2 ...
+python scirpts/evaluate_policy.py --n-sample 20 --model openvla --model_ckpt xx --lora_ckpt xx --eval_track track_1_in_distribution --tasks task1, task2 ...
 ```
 
 2. Evaluate Openpi
@@ -124,6 +129,26 @@ Please use `git submodule update --init --recursive` to ensure that you have cor
 For openpi, you should create a virtual env with `uv` and run the server policy. Then, you can evaluate the finetuned openpi on VLABench. Please refer [here](third_party/openpi/examples/vlabench/README.md) for example.
 
 3. Continously integrate more policies...
+
+### VLM evaluation
+
+Step 1. Download the evaluation episodes from HuggingFace
+```sh
+cd /root/of/VLABench
+mkdir dataset
+cd dataset
+
+git clone https://huggingface.co/datasets/VLABench/vlm_evaluation_v1.0
+```
+
+Step 2. Evaluation VLMs
+```sh
+python scripts/evaluate_vlm.py --vlm_name Qwen2_VL --few-shot-num 1 --with-cot
+```
+
+Currently, the repo supports serval VLM choices:["GPT_4v", "Qwen2_VL", "InternVL2", "MiniCPM_V2_6", "GLM4v", "Llava_NeXT"], and more VLMs (diffrent family and size) will be added.
+
+If you're evaluating GPT series, please set `OPENAI_API_KEY` and `OPENAI_BASE_URL` in your environment variables.
 
 ## Issues
 When you encounter an issue, you can first refer to the [document](./docs/issues.md). Feel free to open a new issue if needed.

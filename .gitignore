@@ -192,3 +192,6 @@ test
 *.png
 *.jpg
 *.ply
+
+ssh/
+gitconfig
