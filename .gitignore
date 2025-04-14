@@ -170,6 +170,12 @@ VLABench/assets/robots
 VLABench/third_party
 **/test_result/
 **/cache/
+mujoco-py
+logs
+logs_old
+.mujoco
+**/dataset/
+dataset/
 
 VLABench/evaluateVLM/dataset/
 
@@ -181,3 +187,8 @@ scripts/paper_scripts
 dataset
 logs
 test
+
+*.mp4
+*.png
+*.jpg
+*.ply
