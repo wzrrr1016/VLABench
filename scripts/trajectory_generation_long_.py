@@ -3,6 +3,8 @@ The scripts to launch auto scene load and key-point based trajectory generation.
 """
 import numpy as np
 import os
+
+os.environ['DISPLAY']=":1"
 import open3d as o3d
 import mediapy
 import argparse
@@ -20,7 +22,6 @@ from VLABench.utils.skill_lib import SkillLib
 from VLABench.configs import name2config
 
 os.environ["MUJOCO_GL"] = "egl"
-os.environ['DISPLAY']=":1"
 
 def get_args():
     parser = argparse.ArgumentParser(description='Generate trajectory for a task')
@@ -51,34 +52,98 @@ def generate_trajectory(args, index, logger):
     episode_config = env.save()
     
     # load key prior information and task specific variables
-    target_entity = env.task.config_manager.target_entity   
+    target_entity = env.task.config_manager.target_entity
+    all_fruit = ['apple', 'banana', 'grape', 'orange', 'peach', 'pear', 'pineapple', 'kiwi','mango']
+    entities = list(env.task.entities.keys())   
+    entities = [e for e in entities if e in all_fruit]
     instruction = env.task.get_instruction()
     meta_info = dict(
-        target_entity=[target_entity],
+        target_entity=entities,
         entities=list(env.task.entities.keys()),
         instruction=[instruction],
     )
     
     # register the expert sequence
-    skill_seq = env.get_expert_skill_sequence()
-
-    # start auto trajectory generation
+    skill_seq = []
+    plan = []
     observations, waypoints= [], []
-    if skill_seq is not None: # normal case
-        for skill in skill_seq:
-            obs, waypoint, stage_success, task_success = skill(env)
+    task_success = True
+    for entity in entities:
+        skill = partial(SkillLib.pick, target_entity_name=entity)
+        obs, waypoint, stage_success, _ = skill(env)
+        if args.debug:
+            for o in obs: observations.append(dict(rgb=o["rgb"]))
+        else:
+            observations.extend(obs)
+            waypoints.extend(waypoint)
+        if not stage_success:
+            skill = partial(SkillLib.pick, target_entity_name=entity)
+            plan.append(['pick', entity, 0])
+            obs, waypoint, stage_success, _ = skill(env)
             if args.debug:
                 for o in obs: observations.append(dict(rgb=o["rgb"]))
             else:
                 observations.extend(obs)
                 waypoints.extend(waypoint)
-            if args.early_stop and not stage_success:
-                logger.warning(f"{skill} failed, early quit...")
+            if not stage_success:
+                logger.warning(f"{skill} failed")
+                task_success = False
                 break
-            if task_success:
+            else:
+                plan.append(['pick', entity, 1])
+        else:
+            plan.append(['pick', entity, 1])
+            
+        skill = partial(SkillLib.lift, lift_height=0.15)
+        obs, waypoint, stage_success, _ = skill(env)
+        if args.debug:
+            for o in obs: observations.append(dict(rgb=o["rgb"]))
+        else:
+            observations.extend(obs)
+            waypoints.extend(waypoint)
+        if not stage_success:
+            skill = partial(SkillLib.lift, lift_height=0.15)
+            plan.append(['lift', entity, 0])
+            obs, waypoint, stage_success, _ = skill(env)
+            if args.debug:
+                for o in obs: observations.append(dict(rgb=o["rgb"]))
+            else:
+                observations.extend(obs)
+                waypoints.extend(waypoint)
+            if not stage_success:
+                logger.warning(f"{skill} failed")
+                task_success = False
                 break
-    else: # TODO: some special tasks should be handled based on the feedback
-        raise NotImplementedError("No expert skill sequence found")
+            else:
+                plan.append(['lift', entity, 1])
+        else:
+            plan.append(['lift', entity, 1])
+            
+        skill = partial(SkillLib.place, target_container_name="plate_seen")
+        obs, waypoint, stage_success, _ = skill(env)
+        if args.debug:
+            for o in obs: observations.append(dict(rgb=o["rgb"]))
+        else:
+            observations.extend(obs)
+            waypoints.extend(waypoint)
+        if not stage_success:
+            skill = partial(SkillLib.place, target_container_name="plate_seen")
+            plan.append(['place', entity, 0])
+            obs, waypoint, stage_success, _ = skill(env)
+            if args.debug:
+                for o in obs: observations.append(dict(rgb=o["rgb"]))
+            else:
+                observations.extend(obs)
+                waypoints.extend(waypoint)
+            if not stage_success:
+                logger.warning(f"{skill} failed")
+                task_success = False
+                break
+            else:
+                plan.append(['place', entity, 1])
+        else:
+            plan.append(['place', entity, 1])
+
     
     task_dir = os.path.join(args.save_dir, args.task_name)
     if args.record_video:
@@ -105,6 +170,7 @@ def generate_trajectory(args, index, logger):
     data_to_save["target_entity"] = meta_info["target_entity"]
     data_to_save["episode_config"] = json.dumps(episode_config)
     data_to_save["instruction"] =meta_info["instruction"]
+    data_to_save["plan"] = plan
     save_single_data(data_to_save, 
                      save_dir=task_dir,
                      filename=f"data_{index}.hdf5",

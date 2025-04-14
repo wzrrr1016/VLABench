@@ -1,7 +1,8 @@
+export DISPLAY=:1
 N_SAMPLE=200
 OFFSET=0
  
-task_names=("add_condiment" "insert_flower") # add more task here
+task_names=("select_poker" "select_toy") # add more task here
 # save_dir="/Your/path/to/trajectory/dataset"
 save_dir="/workspace/robotics/home_ly/VLABench/data"
 

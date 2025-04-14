@@ -94,7 +94,7 @@ class VLMEvaluator(Evaluator):
     
     def load_single_input(self, task_name, example_num):
         input_pic_path = os.path.join(self.data_path, task_name, "example"+ str(example_num), 'input/input.png')
-        input_pic_gt_path = os.path.join(self.data_path, task_name, "example"+ str(example_num), 'input/input_gt.png')
+        input_pic_gt_path = os.path.join(self.data_path, task_name, "example"+ str(example_num), 'input/input_mask.png')
         input_instruction_path = os.path.join(self.data_path, task_name, "example"+ str(example_num), 'input/instruction.txt')
 
         input_pic = input_pic_path
@@ -277,6 +277,7 @@ class VLMEvaluator(Evaluator):
                     }
                 
         final_score_dict_save_path = os.path.join(self.get_result_save_path(vlm_name, few_shot_num, with_CoT), "final_score.json")
+        print(final_score_dict_save_path)
         with open(final_score_dict_save_path, 'w', encoding="utf-8") as f:
             json.dump(final_score_dict, f, ensure_ascii=False, indent=4)
         return final_score_dict

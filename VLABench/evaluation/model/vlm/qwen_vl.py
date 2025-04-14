@@ -4,17 +4,17 @@ class Qwen2_VL(BaseVLM):
     def __init__(self) -> None:
         super().__init__()
         
-        from transformers import Qwen2VLForConditionalGeneration, AutoTokenizer, AutoProcessor
-        from modelscope import snapshot_download
-        model_dir = snapshot_download("qwen/Qwen2-VL-7B-Instruct")
+        from transformers import Qwen2_5_VLForConditionalGeneration, AutoTokenizer, AutoProcessor
+        # from modelscope import snapshot_download
+        # model_dir = snapshot_download("qwen/Qwen2-VL-7B-Instruct")
 
         # # default: Load the model on the available device(s)
         # model = Qwen2VLForConditionalGeneration.from_pretrained(
         #     model_dir, torch_dtype="auto", device_map="auto"
         # )
-
+        model_dir = "/workspace/robotics/MODELS/Qwen/Qwen2.5-VL-7B-Instruct"
         # We recommend enabling flash_attention_2 for better acceleration and memory saving, especially in multi-image and video scenarios.
-        self.model = Qwen2VLForConditionalGeneration.from_pretrained(
+        self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             model_dir,
             torch_dtype=torch.bfloat16,
             attn_implementation="flash_attention_2",
@@ -29,6 +29,7 @@ class Qwen2_VL(BaseVLM):
         ti_list = get_ti_list(input_dict, language, with_CoT=with_CoT)
         
         content = self.build_prompt_with_tilist(ti_list)
+        # print("content: ", content)
 
         # Messages containing multiple images and a text query
         messages = [

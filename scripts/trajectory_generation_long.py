@@ -51,21 +51,36 @@ def generate_trajectory(args, index, logger):
     episode_config = env.save()
     
     # load key prior information and task specific variables
-    target_entity = env.task.config_manager.target_entity   
+    all_fruit = ['apple', 'banana', 'grape', 'orange', 'peach', 'pear', 'pineapple', 'kiwi','mango']
+    entities = list(env.task.entities.keys())   
+    entities = [e for e in entities if e in all_fruit]
     instruction = env.task.get_instruction()
     meta_info = dict(
-        target_entity=[target_entity],
+        target_entity=entities,
         entities=list(env.task.entities.keys()),
         instruction=[instruction],
     )
     
     # register the expert sequence
-    skill_seq = env.get_expert_skill_sequence()
+    print(env.get_expert_skill_sequence())
+    skill_seq = []
+    for entity in entities:
+        skill_seq.append(partial(SkillLib.pick, target_entity_name=entity))
+        # skill_seq.append(partial(SkillLib.lift, lift_height=0.1, gripper_state=np.zeros(2)))
+        skill_seq.append(partial(SkillLib.place, target_container_name="plate_seen"))
 
     # start auto trajectory generation
     observations, waypoints= [], []
+    plan = []
+    action = ['pick','place']
+    action_num = len(action)
+    task_success = True
     if skill_seq is not None: # normal case
+        count = 0
         for skill in skill_seq:
+            print(skill)
+            act = action[count%action_num]
+            ent = entities[count//action_num]
             obs, waypoint, stage_success, task_success = skill(env)
             if args.debug:
                 for o in obs: observations.append(dict(rgb=o["rgb"]))
@@ -74,9 +89,22 @@ def generate_trajectory(args, index, logger):
                 waypoints.extend(waypoint)
             if args.early_stop and not stage_success:
                 logger.warning(f"{skill} failed, early quit...")
-                break
-            if task_success:
-                break
+                plan.append([act, ent, 0])
+                obs, waypoint, stage_success, _ = skill(env)
+                if args.debug:
+                    for o in obs: observations.append(dict(rgb=o["rgb"]))
+                else:
+                    observations.extend(obs)
+                    waypoints.extend(waypoint)
+                if not stage_success:
+                    logger.warning(f"{skill} failed again, skip saving data")
+                    task_success = False
+                    break
+                else:
+                    plan.append([act, ent, 1])
+            else:
+                plan.append([act, ent, 1])
+            count += 1
     else: # TODO: some special tasks should be handled based on the feedback
         raise NotImplementedError("No expert skill sequence found")
     
